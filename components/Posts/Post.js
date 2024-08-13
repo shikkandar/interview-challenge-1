@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 
 const PostContainer = styled.div(() => ({
@@ -12,6 +12,9 @@ const PostContainer = styled.div(() => ({
 
 const CarouselContainer = styled.div(() => ({
   position: 'relative',
+  '&:hover button': {
+    opacity: 1,
+  },
 }));
 
 const Carousel = styled.div(() => ({
@@ -19,6 +22,7 @@ const Carousel = styled.div(() => ({
   overflowX: 'scroll',
   scrollbarWidth: 'none',
   msOverflowStyle: 'none',
+  scrollSnapType: 'x mandatory',
   '&::-webkit-scrollbar': {
     display: 'none',
   },
@@ -27,7 +31,7 @@ const Carousel = styled.div(() => ({
 
 const CarouselItem = styled.div(() => ({
   flex: '0 0 auto',
-  scrollSnapAlign: 'start',
+  scrollSnapAlign: 'center',
 }));
 
 const Image = styled.img(() => ({
@@ -44,15 +48,38 @@ const Content = styled.div(() => ({
   },
 }));
 
+const UserInfoContainer = styled.div(() => ({
+  display: 'flex',
+  alignItems: 'center',
+  marginBottom: '10px',
+}));
+
+const UserLogo = styled.div(() => ({
+  width: '40px',
+  height: '40px',
+  borderRadius: '50%',
+  backgroundColor: '#808080',
+  color: '#fff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '18px',
+  fontWeight: 'bold',
+  marginRight: '10px',
+}));
+
 const Button = styled.button(() => ({
   position: 'absolute',
-  bottom: 0,
-  backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  backgroundColor: 'rgba(255, 255, 255, 0.7)',
   border: 'none',
   color: '#000',
   fontSize: '20px',
   cursor: 'pointer',
   height: '50px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  opacity: 0,
+  transition: 'opacity 0.3s ease',
 }));
 
 const PrevButton = styled(Button)`
@@ -63,13 +90,25 @@ const NextButton = styled(Button)`
   right: 10px;
 `;
 
-const Post = ({ post }) => {
+const Post = ({ post, user }) => {
   const carouselRef = useRef(null);
+
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(false);
+
+  const handleScroll = () => {
+    if (carouselRef.current) {
+      const { scrollLeft, scrollWidth, offsetWidth } = carouselRef.current;
+      setAtStart(scrollLeft === 0);
+      setAtEnd(scrollLeft + offsetWidth >= scrollWidth);
+    }
+  };
 
   const handleNextClick = () => {
     if (carouselRef.current) {
+      const containerWidth = carouselRef.current.offsetWidth;
       carouselRef.current.scrollBy({
-        left: 50,
+        left: containerWidth,
         behavior: 'smooth',
       });
     }
@@ -77,25 +116,60 @@ const Post = ({ post }) => {
 
   const handlePrevClick = () => {
     if (carouselRef.current) {
+      const containerWidth = carouselRef.current.offsetWidth;
       carouselRef.current.scrollBy({
-        left: -70,
+        left: -containerWidth,
         behavior: 'smooth',
       });
     }
   };
 
+  useEffect(() => {
+    if (carouselRef.current) {
+      carouselRef.current.addEventListener('scroll', handleScroll);
+      handleScroll(); // Initial check
+      return () => {
+        if (carouselRef.current) {
+          carouselRef.current.removeEventListener('scroll', handleScroll);
+        }
+      };
+    }
+  }, []);
+
+  const getInitials = name => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('');
+  };
+
   return (
     <PostContainer>
+      <Content>
+        {user && (
+          <UserInfoContainer>
+            <UserLogo>{getInitials(user.name)}</UserLogo>
+            <div>
+              <p style={{ fontWeight: 'bold' }}>{user.name}</p>
+              <p>{user.email}</p>
+            </div>
+          </UserInfoContainer>
+        )}
+      </Content>
       <CarouselContainer>
         <Carousel ref={carouselRef}>
-          {post.images.map((image, index) => (
+          {post?.images?.map((image, index) => (
             <CarouselItem key={index}>
               <Image src={image.url} alt={post.title} />
             </CarouselItem>
           ))}
         </Carousel>
-        <PrevButton onClick={handlePrevClick}>&#10094;</PrevButton>
-        <NextButton onClick={handleNextClick}>&#10095;</NextButton>
+        <PrevButton onClick={handlePrevClick} disabled={atStart}>
+          &#10094;
+        </PrevButton>
+        <NextButton onClick={handleNextClick} disabled={atEnd}>
+          &#10095;
+        </NextButton>
       </CarouselContainer>
       <Content>
         <h2>{post.title}</h2>
@@ -107,12 +181,19 @@ const Post = ({ post }) => {
 
 Post.propTypes = {
   post: PropTypes.shape({
-    content: PropTypes.any,
-    images: PropTypes.shape({
-      map: PropTypes.func,
-    }),
-    title: PropTypes.any,
-  }),
+    id: PropTypes.number.isRequired,
+    title: PropTypes.string.isRequired,
+    body: PropTypes.string.isRequired,
+    images: PropTypes.arrayOf(
+      PropTypes.shape({
+        url: PropTypes.string.isRequired,
+      }),
+    ).isRequired,
+  }).isRequired,
+  user: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    email: PropTypes.string.isRequired,
+  }).isRequired,
 };
 
 export default Post;

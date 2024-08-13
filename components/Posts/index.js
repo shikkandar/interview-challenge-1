@@ -1,9 +1,11 @@
+// components/Posts.js
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import styled from '@emotion/styled';
 import Post from './Post';
 import Container from '../common/Container';
-import useWindowWidth from '../hooks/useWindowWidth';
+import { WindowWidthContext } from '../hooks/useWindowWidth';
+import useUserData from '../hooks/useUserData';
 
 const PostListContainer = styled.div(() => ({
   display: 'flex',
@@ -34,16 +36,29 @@ const LoadMoreButton = styled.button(() => ({
 
 export default function Posts() {
   const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(5);
   const [isLoading, setIsLoading] = useState(false);
+  const { users } = useUserData();
+  console.log(users);
 
-  const { isSmallerDevice } = useWindowWidth();
+  const { isSmallerDevice } = useContext(WindowWidthContext);
 
   useEffect(() => {
     const fetchPost = async () => {
       const { data: posts } = await axios.get('/api/v1/posts', {
         params: { start: 0, limit: isSmallerDevice ? 5 : 10 },
       });
-      setPosts(posts);
+
+      const postsWithImages = await Promise.all(
+        posts.map(async post => {
+          const { data: images } = await axios.get(
+            'https://jsonplaceholder.typicode.com/albums/1/photos',
+          );
+          return { ...post, images };
+        }),
+      );
+
+      setPosts(postsWithImages);
     };
 
     fetchPost();
@@ -54,22 +69,27 @@ export default function Posts() {
 
     setTimeout(() => {
       setIsLoading(false);
-    }, 3000);
+      setPage(prevPage => prevPage + 3);
+    }, 1000);
   };
+
+  const data = posts.slice(0, page);
 
   return (
     <Container>
       <PostListContainer>
-        {posts.map(post => (
-          <Post post={post} />
+        {data.map((post, index) => (
+          <Post key={post.id} post={post} user={users[index]} />
         ))}
       </PostListContainer>
 
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <LoadMoreButton onClick={handleClick} disabled={isLoading}>
-          {!isLoading ? 'Load More' : 'Loading...'}
-        </LoadMoreButton>
-      </div>
+      {posts.length >= page && (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <LoadMoreButton onClick={handleClick} disabled={isLoading}>
+            {!isLoading ? 'Load More' : 'Loading...'}
+          </LoadMoreButton>
+        </div>
+      )}
     </Container>
   );
 }

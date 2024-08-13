@@ -12,6 +12,7 @@ export default function HomePage() {
       <div
         style={{
           margin: '60px 0px 20px',
+          flex: 1,
         }}
       >
         <UserList />

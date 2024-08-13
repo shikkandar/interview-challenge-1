@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+// hooks/useWindowWidth.js
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
-function useWindowWidth() {
+// Create the context
+export const WindowWidthContext = createContext();
+
+// Create the provider component
+export const WindowWidthProvider = ({ children }) => {
   const [isSmallerDevice, setIsSmallerDevice] = useState(false);
 
   useEffect(() => {
@@ -9,7 +14,7 @@ function useWindowWidth() {
       setIsSmallerDevice(width < 500);
     };
 
-    handleResize();
+    handleResize(); // Set initial value
     window.addEventListener('resize', handleResize);
 
     return () => {
@@ -17,7 +22,12 @@ function useWindowWidth() {
     };
   }, []);
 
-  return { isSmallerDevice };
-}
+  return (
+    <WindowWidthContext.Provider value={{ isSmallerDevice }}>
+      {children}
+    </WindowWidthContext.Provider>
+  );
+};
 
-export default useWindowWidth;
+// Custom hook to use the context (optional, for convenience)
+export const useWindowWidth = () => useContext(WindowWidthContext);
